@@ -1,0 +1,43 @@
+[project]
+name = "eyeot-mcp"
+version = "1.0.0"
+description = "stdio↔HTTP bridge for the eyeot ERP MCP server (Claude Desktop, Cursor, custom agents)"
+requires-python = ">=3.10"
+authors = [{ name = "Eyeot Software", email = "contact@eyeot.fr" }]
+license = { text = "MIT" }
+readme = "README.md"
+keywords = ["mcp", "model-context-protocol", "eyeot", "erp", "agent", "claude", "claude-desktop", "cursor"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+# No external dependencies — uses only the standard library so installs are
+# instant and don't break in restricted sandboxes (Claude Desktop, etc.).
+dependencies = []
+
+[project.scripts]
+eyeot-mcp = "eyeot_mcp.__main__:main"
+
+[project.urls]
+Homepage = "https://erp.eyeot.fr"
+Documentation = "https://erp.eyeot.fr/mcp"
+Source = "https://github.com/Termi24/ERP-by-Eyeot-Software"
+Issues = "https://github.com/Termi24/ERP-by-Eyeot-Software/issues"
+"ERP Platform" = "https://erp.eyeot.fr"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["eyeot_mcp"]
