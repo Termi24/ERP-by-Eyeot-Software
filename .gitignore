@@ -42,3 +42,7 @@ htmlcov/
 .tox/
 .mypy_cache/
 .ruff_cache/
+
+# Internal — release notes kept out of git so we can iterate without polluting
+# the public history. The wheel doesn't include this file either.
+PUBLISHING.md

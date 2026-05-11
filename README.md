@@ -1,55 +1,40 @@
-# eyeot-mcp
+<div align="center">
 
-[![PyPI version](https://img.shields.io/pypi/v/eyeot-mcp.svg)](https://pypi.org/project/eyeot-mcp/)
-[![Python](https://img.shields.io/pypi/pyversions/eyeot-mcp.svg)](https://pypi.org/project/eyeot-mcp/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![MCP](https://img.shields.io/badge/Model_Context_Protocol-2024--11--05-blueviolet)](https://modelcontextprotocol.io)
+# `eyeot-mcp`
 
-> Official stdio ↔ HTTP bridge for the **eyeot ERP** Model Context Protocol server.
-> Plug Claude Desktop, Cursor, or any MCP-compatible agent into a remote eyeot
-> deployment with a single command.
+### Plug Claude Desktop into your ERP.
 
-**ERP by Eyeot Software** — [erp.eyeot.fr](https://erp.eyeot.fr)
+**Official stdio ↔ HTTP bridge for the [eyeot ERP](https://erp.eyeot.fr) MCP server.**
+~440 business tools, one `pip install`.
+
+<br />
+
+[![PyPI version](https://img.shields.io/pypi/v/eyeot-mcp?color=4f46e5&label=PyPI&style=for-the-badge)](https://pypi.org/project/eyeot-mcp/)
+[![Python](https://img.shields.io/pypi/pyversions/eyeot-mcp?color=4f46e5&style=for-the-badge)](https://pypi.org/project/eyeot-mcp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-10b981?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![MCP](https://img.shields.io/badge/MCP-2024--11--05-8b5cf6?style=for-the-badge)](https://modelcontextprotocol.io)
+
+[![Dependencies](https://img.shields.io/badge/Runtime_Deps-0-10b981?style=flat-square)](#)
+[![LOC](https://img.shields.io/badge/Source-~270_LOC-64748b?style=flat-square)](#)
+[![Auditable](https://img.shields.io/badge/Auditable_in-10_min-64748b?style=flat-square)](#)
+[![Auth](https://img.shields.io/badge/Auth-OAuth_2.1_%2B_PKCE-f59e0b?style=flat-square)](#-authentication)
+
+[**Landing page**](https://erp.eyeot.fr/mcp) · [**Docs**](https://erp.eyeot.fr/api/docs) · [**PyPI**](https://pypi.org/project/eyeot-mcp/) · [**Issues**](https://github.com/Termi24/ERP-by-Eyeot-Software/issues)
+
+</div>
+
+<br />
 
 ---
 
-## What this does
-
-The eyeot ERP exposes ~440 business actions (CRM, sales, stock, maintenance,
-HR, finance, IT service management…) as MCP tools over HTTPS. Most local
-agents (Claude Desktop, Cursor) only speak MCP over **stdio**. This package
-is the missing piece :
-
-```
-Claude Desktop  ←─ JSON-RPC stdio ─→  eyeot-mcp  ←─ HTTPS POST ─→  /api/v1/mcp
-```
-
-All authentication, RBAC, audit logging, license guard, idempotency and
-tenant isolation happens **server-side**. The bridge only forwards messages.
-
-## Install
+## ⚡ 60-second install
 
 ```bash
-pip install eyeot-mcp
+pip install eyeot-mcp        # 1.  install the bridge
+eyeot-mcp login              # 2.  authenticate via browser (OAuth Device Flow)
 ```
 
-Python 3.10+. **No dependencies** — uses only the standard library, so it
-installs instantly and works inside restricted sandboxes (Claude Desktop's
-embedded Python, locked-down CI runners, etc.).
-
-## Quick start — OAuth (recommended for humans)
-
-```bash
-eyeot-mcp login
-```
-
-The CLI prints a short code (e.g. `ABCD-WXYZ`) and opens your browser. Log
-in to your eyeot ERP account, approve the consent, done. Credentials are
-saved to `~/.eyeot-mcp/config.json` (mode 600).
-
-Then add the bridge to your Claude Desktop config (`~/Library/Application
-Support/Claude/claude_desktop_config.json` on macOS,
-`%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+Then paste into your Claude Desktop config:
 
 ```json
 {
@@ -61,26 +46,92 @@ Support/Claude/claude_desktop_config.json` on macOS,
 }
 ```
 
-Restart Claude Desktop. The eyeot ERP tools are now available in your
-conversations — try **"list my last 5 invoices"** or **"create a quote for
-ACME for 10 units of PROD-001"**.
+Restart Claude Desktop. Done. Ask: *"List my last 5 invoices."*
 
-## Quick start — API key (for service agents)
+> **Config location**  ·  macOS `~/Library/Application Support/Claude/claude_desktop_config.json` · Windows `%APPDATA%\Claude\claude_desktop_config.json`
 
-If your admin gave you a service API key (`eyk_xxx_xxx`), skip the OAuth flow :
+<br />
 
-```json
-{
-  "mcpServers": {
-    "eyeot": {
-      "command": "eyeot-mcp",
-      "args": ["--token", "eyk_xxx_xxx"]
-    }
-  }
-}
+## 🧩 What is this?
+
+The **eyeot ERP** exposes ~440 business actions — CRM, sales, stock, maintenance, HR, finance, IT service management, GED, RGPD compliance — as **MCP tools over HTTPS**.
+
+But Claude Desktop, Cursor, and most local agents only speak **MCP over stdio**.
+
+`eyeot-mcp` is the missing piece between them.
+
+```mermaid
+flowchart LR
+    A["🤖 Claude Desktop<br/>Cursor / custom agent"] -- "JSON-RPC<br/>over stdio" --> B["📦 eyeot-mcp<br/>(this package)"]
+    B -- "HTTPS POST<br/>Bearer token" --> C["🏢 eyeot ERP<br/>(your tenant)"]
+    C -. "Auth · RBAC · audit<br/>multi-tenant isolation<br/>license guard" .-> C
+
+    style A fill:#eef2ff,stroke:#6366f1,color:#1e293b
+    style B fill:#f0fdf4,stroke:#10b981,color:#065f46
+    style C fill:#fef3c7,stroke:#f59e0b,color:#78350f
 ```
 
-Or via environment variable (avoid storing keys in config files) :
+**Zero business logic in the bridge.** Everything happens server-side — auth, RBAC, audit logging, license enforcement, multi-tenant isolation, idempotency. The CLI is ~270 lines of Python standard library. You can audit it in 10 minutes.
+
+<br />
+
+## 🎯 What can your agent do?
+
+After install, your MCP client gets access to actions like:
+
+| Domain | Try saying… |
+|---|---|
+| 💼 **CRM** | *"Create a quote for ACME — 10 units of PROD-001 at standard tariff."* |
+| 📊 **Sales** | *"List my last 5 invoices and their payment status."* |
+| 📦 **Stock** | *"Which products in Lyon site are below the critical threshold?"* |
+| 🔧 **Maintenance** | *"Which equipment is overdue for preventive maintenance this week?"* |
+| 👥 **HR** | *"Show me pending leave requests for my team."* |
+| 💰 **Finance** | *"What's the revenue forecast for Q3 by business unit?"* |
+| 🎫 **IT support** | *"Open a ticket: VPN is down for the marketing team, P1."* |
+| 📄 **GED** | *"Find all signed NDAs for partner XYZ."* |
+| 🧠 **Intelligence** | *"Customer-health distribution across all active accounts."* |
+
+…and ~430 more, auto-generated from the [OpenAPI spec](https://erp.eyeot.fr/api/v1/openapi.json).
+
+<br />
+
+## 🔐 Authentication
+
+Two modes, **same Bearer header** on the wire, **same Authorization decorator** server-side.
+
+<table>
+<tr>
+<th width="50%">
+
+### 🤖 OAuth 2.1 (humans)
+
+</th>
+<th width="50%">
+
+### 🔑 API key (services)
+
+</th>
+</tr>
+<tr>
+<td valign="top">
+
+For Claude Desktop, Cursor, personal agents.
+
+```bash
+eyeot-mcp login
+```
+
+Opens browser → approve → done. Credentials saved to `~/.eyeot-mcp/config.json` (mode `0600`).
+
+- Token format: `eya_<base64>` access + `eyr_<base64>` refresh
+- Lifetime: **1 h** access / **30 d** refresh
+- **PKCE S256** mandatory (public clients)
+- Refresh rotation with replay detection — a stolen refresh kills the whole token family
+
+</td>
+<td valign="top">
+
+For CI/CD agents, batch jobs, server-to-server.
 
 ```json
 {
@@ -93,9 +144,64 @@ Or via environment variable (avoid storing keys in config files) :
 }
 ```
 
-## Self-hosted deployment
+Issued by an org admin from the eyeot ERP settings panel.
 
-Override the base URL for any private eyeot deployment :
+- Token format: `eyk_<prefix>_<secret>`
+- Lifetime: **until revoked**
+- Scope: org-wide, configurable RBAC
+
+</td>
+</tr>
+</table>
+
+<br />
+
+## 🛡️ Security model
+
+<table>
+<tr>
+<td width="25%" valign="top" align="center">
+
+### 🔒
+**OAuth 2.1 + PKCE**
+
+Public clients use PKCE S256. Refresh rotation with replay detection.
+
+</td>
+<td width="25%" valign="top" align="center">
+
+### 👮
+**Server-side RBAC**
+
+Every tool call goes through the same `@permissions_required` decorators as the UI.
+
+</td>
+<td width="25%" valign="top" align="center">
+
+### 📝
+**Full audit trail**
+
+Every action logged with user + tenant + IP. RGPD-compliant retention.
+
+</td>
+<td width="25%" valign="top" align="center">
+
+### 💳
+**License grace**
+
+Subscription lapsed? GETs still work so the agent can inform you. POSTs return 402 with `activate_url`.
+
+</td>
+</tr>
+</table>
+
+> **Local credentials** stored at `~/.eyeot-mcp/config.json` with file mode `0600` (POSIX). On Windows, file ACLs apply. **No telemetry, no phone-home.**
+
+<br />
+
+## 🏗️ Self-hosting
+
+Point the bridge at any eyeot deployment with `--base-url`:
 
 ```bash
 eyeot-mcp --base-url https://erp.example.com login
@@ -112,100 +218,92 @@ eyeot-mcp --base-url https://erp.example.com login
 }
 ```
 
-## Cursor / other MCP clients
+Same protocol, same auth, your infra.
 
-Any client that supports stdio MCP servers works the same way. Cursor :
+<br />
 
-```json
-// .cursor/mcp.json
-{
-  "mcpServers": {
-    "eyeot": {
-      "command": "eyeot-mcp"
-    }
-  }
-}
-```
+## 📚 Commands
 
-## Authentication modes
+| Command | Description |
+|---|---|
+| `eyeot-mcp` | Start the stdio bridge using saved credentials (default mode — what Claude Desktop runs) |
+| `eyeot-mcp login` | Browser-based OAuth Device Authorization Grant |
+| `eyeot-mcp logout` | Revoke refresh token server-side, delete local credentials |
+| `eyeot-mcp --token eyk_...` | One-shot mode with an explicit API key |
+| `eyeot-mcp --base-url URL ...` | Target a self-hosted deployment |
 
-| Token format | Issued to | Lifetime | Typical use |
-|---|---|---|---|
-| `eyk_<prefix>_<secret>` | Service account (org-wide) | Until revoked | CI/CD agents, batch jobs, server-to-server |
-| `eya_<base64>` access + `eyr_*` refresh | Human user (OAuth 2.1) | 1 h / 30 d | Claude Desktop, Cursor, personal agents |
+<br />
 
-Both flow through the same `Authorization: Bearer <token>` header
-server-side. The bridge does not inspect them.
+## 🔧 How it works (under the hood)
 
-## Commands
+1. Claude Desktop spawns `eyeot-mcp` as a child process, exchanges JSON-RPC 2.0 over its stdin/stdout pipes.
+2. For each line received on stdin, the bridge `POST`s the JSON to `${base_url}/api/v1/mcp` with `Authorization: Bearer <token>`.
+3. The HTTP response is written verbatim to stdout, framed as line-delimited JSON.
+4. The server speaks MCP `2024-11-05` and auto-generates ~440 tools from the OpenAPI spec — `initialize`, `tools/list`, `tools/call` all work exactly as MCP clients expect.
 
-```bash
-eyeot-mcp                     # start the stdio bridge using saved credentials
-eyeot-mcp login               # OAuth Device Authorization Grant (opens browser)
-eyeot-mcp logout              # revoke server-side and remove local credentials
-eyeot-mcp --token eyk_...     # one-shot mode with an explicit API key
-eyeot-mcp --base-url URL ...  # target a self-hosted eyeot deployment
-```
+No state in the bridge. No protocol translation beyond transport. No surprises.
 
-## Security model
+<br />
 
-- **No business logic in the bridge.** The CLI is ~270 lines of standard
-  library Python. Auth, RBAC, audit, license enforcement, multi-tenant
-  isolation : all server-side on the eyeot ERP.
-- **Credentials are stored at `~/.eyeot-mcp/config.json`** with file mode
-  `0600` (POSIX). On Windows the file is in your home directory but file
-  ACLs apply.
-- **OAuth 2.1 with PKCE S256** for public clients. Refresh-token rotation
-  with replay detection (a stolen-and-reused refresh token kills the whole
-  family).
-- **License guard read-only grace** : if your subscription lapses, `GET`
-  tools still work (so the agent can keep you informed) but `POST` returns
-  `402 Payment Required` with an `activate_url`.
-- **Idempotency** : critical write operations support an `Idempotency-Key`
-  header server-side. The bridge forwards it transparently when present
-  in the JSON-RPC payload.
+## 📖 Resources
 
-## How it works
+<table>
+<tr>
+<td valign="top">
 
-1. Claude Desktop launches `eyeot-mcp` as a child process and exchanges
-   JSON-RPC 2.0 messages over its stdin/stdout pipes.
-2. For each line received on stdin, the bridge POSTs the JSON to
-   `${base_url}/api/v1/mcp` with `Authorization: Bearer <token>`.
-3. The HTTP response body is written back verbatim to stdout, framed as
-   line-delimited JSON.
-4. The server speaks MCP `2024-11-05` and auto-generates ~440 tools from
-   the OpenAPI spec — `initialize`, `tools/list`, `tools/call` all work
-   exactly as MCP clients expect.
+#### Landing & install
+- 🌐 [erp.eyeot.fr/mcp](https://erp.eyeot.fr/mcp)
+- 📦 [PyPI](https://pypi.org/project/eyeot-mcp/)
+- 🐙 [GitHub](https://github.com/Termi24/ERP-by-Eyeot-Software)
 
-## Documentation
+</td>
+<td valign="top">
 
-- **AI Agent Integration Guide** : [erp.eyeot.fr/mcp](https://erp.eyeot.fr/mcp)
-- **Full API reference** : [erp.eyeot.fr/api/docs](https://erp.eyeot.fr/api/docs)
-- **OpenAPI spec** : [erp.eyeot.fr/api/v1/openapi.json](https://erp.eyeot.fr/api/v1/openapi.json)
-- **MCP manifest** : [erp.eyeot.fr/api/v1/mcp/manifest](https://erp.eyeot.fr/api/v1/mcp/manifest)
+#### API
+- 📘 [Swagger UI](https://erp.eyeot.fr/api/docs)
+- 📄 [OpenAPI spec](https://erp.eyeot.fr/api/v1/openapi.json)
+- 🧩 [MCP manifest](https://erp.eyeot.fr/api/v1/mcp/manifest)
 
-## Versioning
+</td>
+<td valign="top">
 
-- This package : [Semantic Versioning](https://semver.org). Major bumps
-  may change CLI flags or the on-disk config schema.
-- MCP protocol : `2024-11-05` (negotiated server-side).
-- ERP API : `/api/v1` (stable). Breaking changes ship as `/api/v2`.
+#### Spec & protocol
+- 🔗 [modelcontextprotocol.io](https://modelcontextprotocol.io)
+- 🔐 [OAuth 2.1 (draft)](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1)
+- 📜 [RFC 8628 — Device Grant](https://datatracker.ietf.org/doc/html/rfc8628)
 
-## License
+</td>
+</tr>
+</table>
 
-MIT — see [LICENSE](LICENSE).
+<br />
 
-The eyeot ERP backend is a separate, proprietary product of Eyeot Software.
-This bridge is open-source so anyone can audit it, fork it, package it for
-their distro, or use it as a reference for building their own MCP clients.
+## 🧭 Versioning
 
-## About Eyeot Software
+- This package: [Semantic Versioning](https://semver.org). Major bumps may change CLI flags or the on-disk config schema.
+- MCP protocol: `2024-11-05` (negotiated server-side).
+- ERP API: `/api/v1` (stable). Breaking changes ship as `/api/v2`.
 
-**ERP by Eyeot Software** is a multi-tenant, AI-native ERP for SMBs covering
-CRM, sales, stock, maintenance, IoT, projects, IT service management, HR,
-finance, document management, RGPD compliance and cross-module BI. Built to
-be operated by AI agents from day one : every action you can do in the UI
-you can do via this MCP bridge.
+<br />
 
-- Production : [erp.eyeot.fr](https://erp.eyeot.fr)
-- Contact : [contact@eyeot.fr](mailto:contact@eyeot.fr)
+## 📄 License
+
+[**MIT**](LICENSE) — fork it, package it, audit it, build on top of it.
+
+The eyeot ERP backend is a separate, proprietary product of **Eyeot Software**. This bridge is open-source so anyone can audit it, fork it, package it for their distro, or use it as a reference for building their own MCP clients.
+
+<br />
+
+---
+
+<div align="center">
+
+### ERP by Eyeot Software
+
+Multi-tenant, AI-native ERP for SMBs. Built to be operated by AI agents from day one.
+
+Every action you can do in the UI, you can do via this bridge.
+
+🌐 [**erp.eyeot.fr**](https://erp.eyeot.fr)  ·  ✉️ [contact@eyeot.fr](mailto:contact@eyeot.fr)
+
+</div>
