@@ -27,6 +27,10 @@ CONFIG_DIR = Path.home() / ".eyeot-mcp"
 CONFIG_PATH = CONFIG_DIR / "config.json"
 DEFAULT_CLIENT_ID = "eyeot-cli"  # public client registered server-side
 
+# OAuth access tokens live ~1 h. Refresh this many seconds BEFORE expiry so a
+# long-lived bridge process never forwards a stale token to the server.
+TOKEN_REFRESH_SKEW_S = 60
+
 
 def _load_config() -> dict:
     if CONFIG_PATH.exists():
@@ -172,32 +176,90 @@ def cmd_logout(args: argparse.Namespace) -> int:
     return 0
 
 
-def _resolve_auth_header(args: argparse.Namespace) -> str | None:
-    """Return the Authorization header value to use for proxied calls."""
-    if args.token:
-        return f"Bearer {args.token}"
-    cfg = _load_config()
-    if cfg.get("access_token"):
-        # TODO: refresh if expired — V2 (V1 emits a 401 and the user re-logs)
-        return f"Bearer {cfg['access_token']}"
-    env_tok = os.environ.get("EYEOT_TOKEN")
-    if env_tok:
-        return f"Bearer {env_tok}"
-    return None
+def _refresh_oauth_token(cfg: dict) -> bool:
+    """Exchange the saved refresh_token for a fresh access+refresh pair.
+
+    The server rotates the refresh token on every use (replay detection),
+    so we MUST persist the new one — the previous refresh token is dead the
+    moment this call succeeds. `cfg` is mutated in place and written back to
+    disk on success. Returns True on success, False otherwise (caller falls
+    back to the stale token, then a 401 → `eyeot-mcp login` prompt).
+    """
+    refresh = cfg.get("refresh_token")
+    if not refresh:
+        return False
+    base = cfg.get("base_url", DEFAULT_BASE_URL)
+    client_id = cfg.get("client_id", DEFAULT_CLIENT_ID)
+    try:
+        status, body = _http_post(
+            f"{base}/api/v1/oauth/token",
+            {
+                "grant_type": "refresh_token",
+                "refresh_token": refresh,
+                "client_id": client_id,
+            },
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"eyeot-mcp: token refresh transport error: {e}", file=sys.stderr)
+        return False
+
+    if status == 200 and isinstance(body, dict) and body.get("access_token"):
+        cfg["access_token"] = body["access_token"]
+        # Rotation — the server returns a NEW refresh token; the old one is
+        # now revoked. Persist it or the next refresh fails.
+        if body.get("refresh_token"):
+            cfg["refresh_token"] = body["refresh_token"]
+        cfg["expires_at"] = int(time.time() + body.get("expires_in", 3600))
+        _save_config(cfg)
+        print("eyeot-mcp: OAuth token refreshed.", file=sys.stderr)
+        return True
+
+    print(
+        f"eyeot-mcp: token refresh failed (HTTP {status}) — "
+        "run `eyeot-mcp login` to re-authenticate.",
+        file=sys.stderr,
+    )
+    return False
 
 
 def cmd_proxy(args: argparse.Namespace) -> int:
-    """Run the stdio bridge — JSON-RPC messages on stdin → HTTP → stdout."""
+    """Run the stdio bridge — JSON-RPC messages on stdin → HTTP → stdout.
+
+    Auth resolution (precedence) :
+      1. `--token`          : static API key / token, no refresh
+      2. saved OAuth config : access token, refreshed automatically
+      3. `EYEOT_TOKEN` env  : static API key / token, no refresh
+
+    On the OAuth path the access token is refreshed automatically — proactively
+    just before it expires, and reactively if the server answers 401 — so a
+    bridge process started once keeps working for days without the user having
+    to re-run `eyeot-mcp login`.
+    """
     base = args.base_url
-    auth_header = _resolve_auth_header(args)
-    if auth_header is None:
+    rpc_url = f"{base}/api/v1/mcp"
+
+    cfg = _load_config()
+    oauth_mode = not args.token and bool(cfg.get("access_token"))
+    static_token = args.token or (
+        None if oauth_mode else os.environ.get("EYEOT_TOKEN")
+    )
+
+    if not oauth_mode and not static_token:
         print(
             "ERROR: no credentials. Run `eyeot-mcp login` or pass --token / set EYEOT_TOKEN.",
             file=sys.stderr,
         )
         return 1
 
-    rpc_url = f"{base}/api/v1/mcp"
+    def auth_header() -> str:
+        """Current Bearer header — refreshes the OAuth token proactively."""
+        if not oauth_mode:
+            return f"Bearer {static_token}"
+        expires_at = cfg.get("expires_at", 0)
+        if expires_at and time.time() >= expires_at - TOKEN_REFRESH_SKEW_S:
+            _refresh_oauth_token(cfg)  # best-effort; on failure keep stale token
+        return f"Bearer {cfg.get('access_token', '')}"
+
     # Read line-delimited JSON from stdin (the MCP framing for stdio)
     for line in sys.stdin:
         line = line.strip()
@@ -216,7 +278,17 @@ def cmd_proxy(args: argparse.Namespace) -> int:
             continue
 
         try:
-            status, body = _http_post(rpc_url, payload, headers={"Authorization": auth_header})
+            status, body = _http_post(
+                rpc_url, payload, headers={"Authorization": auth_header()}
+            )
+            # Reactive refresh — token rejected mid-session (expired early or
+            # rotated elsewhere). Refresh once and replay the same request.
+            if status == 401 and oauth_mode and _refresh_oauth_token(cfg):
+                status, body = _http_post(
+                    rpc_url,
+                    payload,
+                    headers={"Authorization": f"Bearer {cfg.get('access_token', '')}"},
+                )
         except Exception as e:
             response = {
                 "jsonrpc": "2.0",

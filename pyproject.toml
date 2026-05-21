@@ -1,6 +1,6 @@
 [project]
 name = "eyeot-mcp"
-version = "1.0.0"
+version = "1.1.0"
 description = "stdio↔HTTP bridge for the eyeot ERP MCP server (Claude Desktop, Cursor, custom agents)"
 requires-python = ">=3.10"
 authors = [{ name = "Eyeot Software", email = "contact@eyeot.fr" }]

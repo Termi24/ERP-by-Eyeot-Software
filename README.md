@@ -5,7 +5,7 @@
 ### Plug Claude Desktop into your ERP.
 
 **Official stdio ↔ HTTP bridge for the [eyeot ERP](https://erp.eyeot.fr) MCP server.**
-~440 business tools, one `pip install`.
+~600 business tools, one `pip install`.
 
 <br />
 
@@ -15,7 +15,7 @@
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-8b5cf6?style=for-the-badge)](https://modelcontextprotocol.io)
 
 [![Dependencies](https://img.shields.io/badge/Runtime_Deps-0-10b981?style=flat-square)](#)
-[![LOC](https://img.shields.io/badge/Source-~270_LOC-64748b?style=flat-square)](#)
+[![LOC](https://img.shields.io/badge/Source-~290_LOC-64748b?style=flat-square)](#)
 [![Auditable](https://img.shields.io/badge/Auditable_in-10_min-64748b?style=flat-square)](#)
 [![Auth](https://img.shields.io/badge/Auth-OAuth_2.1_%2B_PKCE-f59e0b?style=flat-square)](#-authentication)
 
@@ -54,7 +54,7 @@ Restart Claude Desktop. Done. Ask: *"List my last 5 invoices."*
 
 ## 🧩 What is this?
 
-The **eyeot ERP** exposes ~440 business actions — CRM, sales, stock, maintenance, HR, finance, IT service management, GED, RGPD compliance — as **MCP tools over HTTPS**.
+The **eyeot ERP** exposes ~600 business actions — CRM, sales, stock, maintenance, HR, finance, IT service management, GED, RGPD compliance, plus 6 V2 marketplace modules (POS, delivery & routing, recruitment, BPM, field service, supply chain) — as **MCP tools over HTTPS**.
 
 But Claude Desktop, Cursor, and most local agents only speak **MCP over stdio**.
 
@@ -71,7 +71,7 @@ flowchart LR
     style C fill:#fef3c7,stroke:#f59e0b,color:#78350f
 ```
 
-**Zero business logic in the bridge.** Everything happens server-side — auth, RBAC, audit logging, license enforcement, multi-tenant isolation, idempotency. The CLI is ~270 lines of Python standard library. You can audit it in 10 minutes.
+**Zero business logic in the bridge.** Everything happens server-side — auth, RBAC, audit logging, license enforcement, multi-tenant isolation, idempotency. The CLI is ~290 lines of Python standard library. You can audit it in 10 minutes.
 
 <br />
 
@@ -90,8 +90,14 @@ After install, your MCP client gets access to actions like:
 | 🎫 **IT support** | *"Open a ticket: VPN is down for the marketing team, P1."* |
 | 📄 **GED** | *"Find all signed NDAs for partner XYZ."* |
 | 🧠 **Intelligence** | *"Customer-health distribution across all active accounts."* |
+| 🧾 **POS / Caisse** | *"Today's Z-report total for the Lyon register."* |
+| 🚚 **Delivery** | *"Optimize today's route for vehicle TL-204 and notify recipients."* |
+| 🧑‍💼 **Recruitment** | *"Shortlist candidates for the senior developer posting."* |
+| ⚙️ **Process / BPM** | *"Which approval tasks are pending in my inbox?"* |
+| 🏗️ **Field service** | *"Schedule a site intervention for client XYZ next Tuesday."* |
+| 🔩 **Supply chain** | *"Run MRP and list the components to reorder this week."* |
 
-…and ~430 more, auto-generated from the [OpenAPI spec](https://erp.eyeot.fr/api/v1/openapi.json).
+…and ~590 more, auto-generated from the [OpenAPI spec](https://erp.eyeot.fr/api/v1/openapi.json).
 
 <br />
 
@@ -127,6 +133,7 @@ Opens browser → approve → done. Credentials saved to `~/.eyeot-mcp/config.js
 - Lifetime: **1 h** access / **30 d** refresh
 - **PKCE S256** mandatory (public clients)
 - Refresh rotation with replay detection — a stolen refresh kills the whole token family
+- The CLI **auto-refreshes** the access token (proactively before expiry + on a 401) — stay connected for the full 30-day refresh window without re-running `login`
 
 </td>
 <td valign="top">
@@ -239,7 +246,7 @@ Same protocol, same auth, your infra.
 1. Claude Desktop spawns `eyeot-mcp` as a child process, exchanges JSON-RPC 2.0 over its stdin/stdout pipes.
 2. For each line received on stdin, the bridge `POST`s the JSON to `${base_url}/api/v1/mcp` with `Authorization: Bearer <token>`.
 3. The HTTP response is written verbatim to stdout, framed as line-delimited JSON.
-4. The server speaks MCP `2024-11-05` and auto-generates ~440 tools from the OpenAPI spec — `initialize`, `tools/list`, `tools/call` all work exactly as MCP clients expect.
+4. The server speaks MCP `2024-11-05` and auto-generates ~600 tools from the OpenAPI spec — `initialize`, `tools/list`, `tools/call` all work exactly as MCP clients expect.
 
 No state in the bridge. No protocol translation beyond transport. No surprises.
 

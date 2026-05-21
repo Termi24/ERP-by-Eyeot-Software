@@ -30,4 +30,4 @@ stdout — enabling Claude Desktop to talk to a remote MCP server through
 the standard stdio transport.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
